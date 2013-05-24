@@ -161,7 +161,6 @@ public class PatchedLightweightHint extends LightweightHint {
           }
         }.setToCenterIfSmall(hintHint.isMayCenterTooltip())
           .setPreferredPosition(hintHint.getPreferredPosition())
-          .setHighlighterType(hintHint.isHightlighterType())
           .setTextForeground(hintHint.getTextForeground())
           .setTextBackground(hintHint.getTextBackground())
           .setBorderColor(hintHint.getBorderColor())
