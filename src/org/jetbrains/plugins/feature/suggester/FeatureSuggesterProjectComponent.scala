@@ -22,6 +22,8 @@ import org.jetbrains.plugins.feature.suggester.changes.ChildrenChangedAction
 import org.jetbrains.plugins.feature.suggester.changes.ChildMovedAction
 import org.jetbrains.plugins.feature.suggester.changes.PropertyChangedAction
 import com.intellij.refactoring.actions.SafeDeleteAction
+import com.intellij.openapi.editor.actions.{DeleteAction, BackspaceAction}
+import org.jetbrains.plugins.feature.suggester.settings.FeatureSuggesterSettings
 
 /**
  * @author Alefas
@@ -29,6 +31,7 @@ import com.intellij.refactoring.actions.SafeDeleteAction
  */
 class FeatureSuggesterProjectComponent(project: Project) extends ProjectComponent {
   private val actionsList = new ListBuffer[UserAction]()
+  private val anActionList = new ListBuffer[UserAnAction]()
   private val ACTION_NUMBER = 100
 
   private def addAction(action: UserAction) {
@@ -38,7 +41,7 @@ class FeatureSuggesterProjectComponent(project: Project) extends ProjectComponen
     if (actionsList.size > ACTION_NUMBER) actionsList.remove(0)
     val actions = actionsList.toList
     for (suggester <- FeatureSuggester.getAllSuggesters if isEnabled(suggester)) {
-      suggester.getSuggestion(actions) match {
+      suggester.getSuggestion(actions, anActionList.toList) match {
         case NoSuggestion => //do nothing
         case FeatureUsageSuggestion => countFeatureUsage(suggester)
         case PopupSuggestion(message) =>
@@ -62,7 +65,14 @@ class FeatureSuggesterProjectComponent(project: Project) extends ProjectComponen
     }
   }
 
-  private def isEnabled(suggester: FeatureSuggester): Boolean = true //todo: enable/disable functionality
+  private def addAnAction(action: UserAnAction) {
+    anActionList += action
+    if (actionsList.size > ACTION_NUMBER) actionsList.remove(0)
+  }
+
+  private def isEnabled(suggester: FeatureSuggester): Boolean = {
+    FeatureSuggesterSettings.getInstance().isEnabled(suggester.getId)
+  }
 
   private def countFeatureUsage(suggester: FeatureSuggester) {
     //todo: enable/disable functionality
@@ -98,6 +108,31 @@ class FeatureSuggesterProjectComponent(project: Project) extends ProjectComponen
 
       override def childMoved(event: PsiTreeChangeEvent) {
         addAction(ChildMovedAction(event.getNewParent, event.getChild, event.getOldParent))
+      }
+    })
+
+    ActionManager.getInstance().addAnActionListener(new AnActionListener {
+      def afterActionPerformed(action: AnAction, dataContext: DataContext, event: AnActionEvent) {}
+
+      def beforeEditorTyping(c: Char, dataContext: DataContext) {}
+
+      def beforeActionPerformed(action: AnAction, dataContext: DataContext, event: AnActionEvent) {
+        action match {
+          case b: BackspaceAction =>
+            val editor = PlatformDataKeys.EDITOR.getData(dataContext)
+            if (editor != null) {
+              val selectedText = Option(editor.getSelectionModel.getSelectedText).getOrElse("")
+              addAnAction(new changes.BackspaceAction(selectedText, System.currentTimeMillis()))
+            }
+          case d: DeleteAction =>
+            val editor = PlatformDataKeys.EDITOR.getData(dataContext)
+            if (editor != null) {
+              val selectedText = Option(editor.getSelectionModel.getSelectedText).getOrElse("")
+              addAnAction(new changes.BackspaceAction(selectedText, System.currentTimeMillis()))
+              //todo: it should have own DeleteAction...
+            }
+          case _ =>
+        }
       }
     })
   }

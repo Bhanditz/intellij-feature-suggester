@@ -11,3 +11,5 @@ implemented few features using this framework:
 - Safe delete
 - Suppress Warnings quickfix
 - Introduce variable
+- Remove else branch
+- Autoindent action
